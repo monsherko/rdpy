@@ -16,7 +16,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
+#d
 
 """
 RDP Honey pot use Rss scenario file to simulate RDP server
@@ -33,7 +33,7 @@ hpfeedslog._LOG_LEVEL = hpfeedslog.Level.INFO
 
 
 def _logger_upqh(username,password,qname, hostname):
-    file_path="/home/raccoon/rdpy.log"
+    file_path="/var/log/rdpy.log"
     try:
         with open(file_path, "a") as f:
             dictmap = dict({'timestamp' : strftime("20%y-%m-%dT%H:%M:%S.000000Z", gmtime()), 'username' : username, 'password' : password, 'hostname' : hostname, 'protocol' : 'rdp' })
@@ -43,7 +43,7 @@ def _logger_upqh(username,password,qname, hostname):
         pass
 
 def _logger_ip(ipaddr, port):
-    file_path="/home/raccoon/rdpy.log"
+    file_path="/var/log/rdpy.log"
     try:
         with open(file_path, "a") as f:
             dictmap = dict({'timestamp' : strftime("20%y-%m-%dT%H:%M:%S.000000Z", gmtime()), 'src_ip' :  ipaddr, 'src_port' : port,  'protocol' : 'rdp' })
@@ -65,17 +65,6 @@ class HoneyPotServer(rdp.RDPServerObserver):
         self._rssFile = None
 
     def onReady(self):
-        """
-        @summary:  Event use to inform state of server stack
-￼
-
-￼
-
-                    First time this event is called is when human client is connected
-                    Second time is after color depth nego, because color depth nego
-                    restart a connection sequence
-        @see: rdp.RDPServerObserver.onReady
-        """
         if self._rssFile is None:
             #compute which RSS file to keep
             width, height = self._controller.getScreen()
