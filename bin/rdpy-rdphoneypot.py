@@ -31,6 +31,28 @@ from twisted.internet import reactor
 log._LOG_LEVEL = log.Level.INFO
 hpfeedslog._LOG_LEVEL = hpfeedslog.Level.INFO
 
+
+def _logger_upqh(username,password,qname, hostname):
+    file_path="/home/raccoon/rdpy.log"
+    try:
+        with open(file_path, "a") as f:
+            dictmap = dict({'timestamp' : strftime("20%y-%m-%dT%H:%M:%S.000000Z", gmtime()), 'username' : username, 'password' : password, 'hostname' : hostname, 'protocol' : 'rdp' })
+            res = json.dumps(dictmap)
+            f.write(res + '\n')
+    except:
+        pass
+
+def _logger_ip(ipaddr, port):
+    file_path="/home/raccoon/rdpy.log"
+    try:
+        with open(file_path, "a") as f:
+            dictmap = dict({'timestamp' : strftime("20%y-%m-%dT%H:%M:%S.000000Z", gmtime()), 'src_ip' :  ipaddr, 'src_port' : port,  'protocol' : 'rdp' })
+            res = json.dumps(dictmap)
+            f.write(res + '\n')
+    except:
+        pass
+
+
 class HoneyPotServer(rdp.RDPServerObserver):
     def __init__(self, controller, rssFileSizeList):
         """
@@ -41,10 +63,14 @@ class HoneyPotServer(rdp.RDPServerObserver):
         self._rssFileSizeList = rssFileSizeList
         self._dx, self._dy = 0, 0
         self._rssFile = None
-        
+
     def onReady(self):
         """
         @summary:  Event use to inform state of server stack
+￼
+
+￼
+
                     First time this event is called is when human client is connected
                     Second time is after color depth nego, because color depth nego
                     restart a connection sequence
@@ -58,54 +84,64 @@ class HoneyPotServer(rdp.RDPServerObserver):
             log.info("select file (%s, %s) -> %s"%(width, height, rssFilePath))
             hpfeedslog.info("select file (%s, %s) -> %s"%(width, height, rssFilePath))
             self._rssFile = rss.createReader(rssFilePath)
-        
+
         domain, username, password = self._controller.getCredentials()
         hostname = self._controller.getHostname()
+        _logger_upqh(username,password,domain, hostname)
         log.info("\n%s,domain:%s,username:%s,password:%s,hostname:%s"%(datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ'), domain, username, password, hostname));
         hpfeedslog.info("%s, domain:%s, username:%s, password:%s, hostname:%s "%(datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ'), domain, username, password, hostname));
         self.start()
-        
+
     def onClose(self):
         """ HoneyPot """
-        
+
     def onKeyEventScancode(self, code, isPressed, isExtended):
         """ HoneyPot """
-    
+
     def onKeyEventUnicode(self, code, isPressed):
         """ HoneyPot """
-        
+
     def onPointerEvent(self, x, y, button, isPressed):
         """ HoneyPot """
-        
+
     def start(self):
         self.loopScenario(self._rssFile.nextEvent())
-        
+
     def loopScenario(self, nextEvent):
         """
         @summary: main loop event
         """
         if nextEvent.type.value == rss.EventType.UPDATE:
             self._controller.sendUpdate(nextEvent.event.destLeft.value + self._dx, nextEvent.event.destTop.value + self._dy, nextEvent.event.destRight.value + self._dx, nextEvent.event.destBottom.value + self._dy, nextEvent.event.width.value, nextEvent.event.height.value, nextEvent.event.bpp.value, nextEvent.event.format.value == rss.UpdateFormat.BMP, nextEvent.event.data.value)
-            
+
         elif nextEvent.type.value == rss.EventType.CLOSE:
             self._controller.close()
             return
-            
+
         elif nextEvent.type.value == rss.EventType.SCREEN:
             self._controller.setColorDepth(nextEvent.event.colorDepth.value)
             #compute centering because we cannot resize client
             clientSize = nextEvent.event.width.value, nextEvent.event.height.value
             serverSize = self._controller.getScreen()
-            
+
             self._dx, self._dy = (max(0, serverSize[0] - clientSize[0]) / 2), max(0, (serverSize[1] - clientSize[1]) / 2)
             #restart connection sequence
             return
-        
+
         e = self._rssFile.nextEvent()
         reactor.callLater(float(e.timestamp.value) / 1000.0, lambda:self.loopScenario(e))
-        
+
 class HoneyPotServerFactory(rdp.ServerFactory):
-    """
+    """def _logger_upqh(username,password,qname, hostname):
+    file_path="/home/raccoon/rdpy.log"
+    try:
+        with open(file_path, "a") as f:
+            dictmap = dict({'timestamp' : strftime("20%y-%m-%dT%H:%M:%S.000000Z", gmtime()), 'username' : username, 'password' : password, 'hostname' : hostname, 'protocol' : 'rdp' })
+            res = json.dumps(dictmap)
+            f.write(res + '\n')
+    except:
+        pass
+
     @summary: Factory on listening events
     """
     def __init__(self, rssFileSizeList, privateKeyFilePath, certificateFilePath):
@@ -116,17 +152,18 @@ class HoneyPotServerFactory(rdp.ServerFactory):
         """
         rdp.ServerFactory.__init__(self, 16, privateKeyFilePath, certificateFilePath)
         self._rssFileSizeList = rssFileSizeList
-        
+
     def buildObserver(self, controller, addr):
         """
         @param controller: {rdp.RDPServerController}
         @param addr: destination address
         @see: rdp.ServerFactory.buildObserver
         """
+        _logger_ip(addr.host, addr.port)
         log.info("\n%s,Connection from %s:%s"%(datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ'), addr.host, addr.port))
         hpfeedslog.info("%s, Connection from %s:%s"%(datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ'), addr.host, addr.port))
         return HoneyPotServer(controller, self._rssFileSizeList)
-    
+
 def readSize(filePath):
     """
     @summary: read size event in rss file
@@ -139,27 +176,25 @@ def readSize(filePath):
             return None
         elif e.type.value == rss.EventType.SCREEN:
             return e.event.width.value, e.event.height.value
-    
+
 def help():
-    """
-    @summary: Print help in console
-    """
-    print """
+
+    print("""
     Usage:  rdpy-rdphoneypot.py rss_filepath(1..n)
-            [-l listen_port default 3389] 
-            [-k private_key_file_path (mandatory for SSL)] 
-            [-c certificate_file_path (mandatory for SSL)] 
-    
+            [-l listen_port default 3389]
+            [-k private_key_file_path (mandatory for SSL)]
+            [-c certificate_file_path (mandatory for SSL)]
+
     Set the following env variables for hpfeeds-logging
             HPFEEDS_SERVER, HPFEEDS_IDENT, HPFEEDS_SECRET, HPFEEDS_PORT, SERVERID, HPFEEDS_CHANNEL
-    """
-    
+    """)
+
 if __name__ == '__main__':
     listen = "3389"
     privateKeyFilePath = None
     certificateFilePath = None
     rssFileSizeList = []
-    
+
     try:
         opts, args = getopt.getopt(sys.argv[1:], "hl:k:c:")
     except getopt.GetoptError:
@@ -174,7 +209,7 @@ if __name__ == '__main__':
             privateKeyFilePath = arg
         elif opt == "-c":
             certificateFilePath = arg
-    
+
     #build size map
     log.info("Build size map")
     #hpfeedslog.info("Build size map")
