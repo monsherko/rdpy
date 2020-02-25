@@ -27,6 +27,7 @@ import sys, os, getopt, time, datetime
 from rdpy.core import log, error, rss, hpfeedslog
 from rdpy.protocol.rdp import rdp
 from twisted.internet import reactor
+import json
 
 log._LOG_LEVEL = log.Level.INFO
 hpfeedslog._LOG_LEVEL = hpfeedslog.Level.INFO
